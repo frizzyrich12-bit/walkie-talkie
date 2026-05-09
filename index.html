@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TALKIE</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0d0d0d;--panel:#141414;--border:#2a2a2a;--accent:#c8f135;--talking:#ff5c00;--text:#e8e8e8;--muted:#555}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+header{width:100%;max-width:480px;display:flex;align-items:baseline;gap:12px;margin-bottom:24px;border-bottom:2px solid var(--accent);padding-bottom:10px}
+header h1{font-size:3rem;font-weight:900;color:var(--accent);line-height:1}
+header span{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:2px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:4px;width:100%;max-width:480px;padding:20px;margin-bottom:16px}
+.card-label{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:3px;color:var(--muted);margin-bottom:12px}
+#join-screen input{width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:3px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:1rem;padding:10px 14px;margin-bottom:10px;outline:none}
+#join-screen input:focus{border-color:var(--accent)}
+#join-screen input::placeholder{color:var(--muted)}
+.btn{width:100%;padding:12px;font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;border:none;border-radius:3px;cursor:pointer}
+.btn-primary{background:var(--accent);color:#0d0d0d}
+#app-screen{display:none;width:100%;max-width:480px;flex-direction:column;gap:16px}
+.channel-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:3px}
+.channel-name{font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--accent);letter-spacing:2px}
+.user-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:3px;background:#0d0d0d;border:1px solid var(--border);margin-bottom:8px;transition:all .2s}
+.user-item.talking{border-color:var(--talking);box-shadow:0 0 12px rgba(255,92,0,.3)}
+.user-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1rem;flex-shrink:0;color:#0d0d0d}
+.user-info{flex:1}
+.user-name{font-size:1rem;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.user-status{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--muted)}
+.user-item.talking .user-status{color:var(--talking)}
+.waveform{display:none;gap:2px;align-items:center;height:16px}
+.user-item.talking .waveform{display:flex}
+.user-item.talking .user-status{display:none}
+.waveform span{width:3px;background:var(--talking);border-radius:2px;animation:wave .5s ease-in-out infinite alternate}
+.waveform span:nth-child(1){height:4px}.waveform span:nth-child(2){height:12px;animation-delay:.1s}.waveform span:nth-child(3){height:8px;animation-delay:.2s}.waveform span:nth-child(4){height:14px;animation-delay:.05s}.waveform span:nth-child(5){height:6px;animation-delay:.15s}.waveform span:nth-child(6){height:10px;animation-delay:.25s}
+@keyframes wave{from{transform:scaleY(.5)}to{transform:scaleY(1.5)}}
+.ptt-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px;background:var(--panel);border:1px solid var(--border);border-radius:4px}
+#ptt-btn{width:140px;height:140px;border-radius:50%;border:3px solid var(--accent);background:#0d0d0d;color:var(--accent);font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;user-select:none;-webkit-user-select:none}
+#ptt-btn svg{width:36px;height:36px;fill:var(--accent)}
+#ptt-btn.active{background:var(--accent);color:#0d0d0d}
+#ptt-btn.active svg{fill:#0d0d0d}
+.ptt-hint{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--muted);letter-spacing:2px;text-align:center}
+#status-log{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--muted);max-height:60px;overflow-y:auto;display:flex;flex-direction:column-reverse;gap:4px}
+#status-log p.ok{color:var(--accent)}
+#status-log p.err{color:#ff4444}
+#error-banner{display:none;padding:10px 14px;background:rgba(255,68,68,.1);border:1px solid #ff4444;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:.75rem;color:#ff4444;margin-bottom:12px}
+</style>
+</head>
+<body>
+<header><h1>TALKIE</h1><span>PTT RADIO v1.0</span></header>
+<div id="error-banner"></div>
+<div class="card" id="join-screen">
+<div class="card-label">▸ Connect to Channel</div>
+<input id="name-input" type="text" placeholder="Your callsign..." maxlength="20"/>
+<input id="room-input" type="text" placeholder="Channel code (e.g. ALPHA-7)" maxlength="20"/>
+<button class="btn btn-primary" onclick="joinRoom()">JOIN CHANNEL</button>
+</div>
+<div id="app-screen">
+<div class="channel-bar"><div><div class="card-label">CHANNEL</div><div class="channel-name" id="channel-display">—</div></div></div>
+<div class="card"><div class="card-label">▸ Online Users (<span id="user-count">0</span>/7)</div><div id="user-list"></div></div>
+<div class="ptt-wrap">
+<button id="ptt-btn" onmousedown="startTalk()" onmouseup="stopTalk()" ontouchstart="startTalk(event)" ontouchend="stopTalk(event)">
+<svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm6.5 9a1 1 0 0 1 1 1 7.5 7.5 0 0 1-15 0 1 1 0 0 1 2 0 5.5 5.5 0 0 0 11 0 1 1 0 0 1 1-1zM11 20.93V23h2v-2.07A8.001 8.001 0 0 0 12 21a8 8 0 0 0-1-.07z"/></svg>
+HOLD</button>
+<div class="ptt-hint">HOLD TO TALK · RELEASE TO SEND</div>
+</div>
+<div class="card"><div class="card-label">▸ System Log</div><div id="status-log"></div></div>
+</div><script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const SERVER_URL=window.location.origin;
+let socket,localStream,myId,myName,roomId;
+const peers={};
+const ICE_CONFIG={iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]};
+
+async function joinRoom(){
+myName=document.getElementById("name-input").value.trim().toUpperCase();
+roomId=document.getElementById("room-input").value.trim().toUpperCase();
+if(!myName||!roomId){showError("Enter a callsign and channel code.");return;}
+try{localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+localStream.getAudioTracks().forEach(t=>t.enabled=false);}
+catch(e){showError("Microphone access denied. Please allow mic and try again.");return;}
+hideError();
+socket=io(SERVER_URL);
+socket.on("connect",()=>{log("Connected","ok");socket.emit("join-room",{roomId,userName:myName});});
+socket.on("room-full",()=>showError("Channel full! Try a different code."));
+socket.on("room-joined",({users,yourId})=>{
+myId=yourId;
+document.getElementById("join-screen").style.display="none";
+const app=document.getElementById("app-screen");
+app.style.display="flex";
+document.getElementById("channel-display").textContent=roomId;
+users.forEach(u=>addUser(u));
+users.filter(u=>u.socketId!==myId).forEach(u=>createOffer(u.socketId));
+log("Joined channel "+roomId,"ok");
+});
+socket.on("user-joined",({socketId,name,color})=>{addUser({socketId,name,color});log(name+" joined","ok");});
+socket.on("user-left",({socketId})=>{
+const el=document.getElementById("user-"+socketId);
+const name=el?.querySelector(".user-name")?.textContent||"User";
+el?.remove();updateUserCount();
+if(peers[socketId]){peers[socketId].close();delete peers[socketId];}
+log(name+" left");
+});
+socket.on("offer",async({from,offer})=>{
+const pc=getPC(from);
+await pc.setRemoteDescription(new RTCSessionDescription(offer));
+const answer=await pc.createAnswer();
+await pc.setLocalDescription(answer);
+socket.emit("answer",{to:from,answer});
+});
+socket.on("answer",async({from,answer})=>{if(peers[from])await peers[from].setRemoteDescription(new RTCSessionDescription(answer));});
+socket.on("ice-candidate",({from,candidate})=>{if(peers[from]&&candidate)peers[from].addIceCandidate(new RTCIceCandidate(candidate));});
+socket.on("user-talking",({socketId})=>setTalking(socketId,true));
+socket.on("user-silent",({socketId})=>setTalking(socketId,false));
+socket.on("disconnect",()=>log("Disconnected","err"));
+}
+
+function getPC(peerId){
+if(peers[peerId])return peers[peerId];
+const pc=new RTCPeerConnection(ICE_CONFIG);
+peers[peerId]=pc;
+localStream.getTracks().forEach(track=>pc.addTrack(track,localStream));
+pc.ontrack=({streams:[stream]})=>{
+let audio=document.getElementById("audio-"+peerId);
+if(!audio){audio=document.createElement("audio");audio.id="audio-"+peerId;audio.autoplay=true;document.body.appendChild(audio);}
+audio.srcObject=stream;
+};
+pc.onicecandidate=({candidate})=>{if(candidate)socket.emit("ice-candidate",{to:peerId,candidate});};
+return pc;
+}
+
+async function createOffer(peerId){
+const pc=getPC(peerId);
+const offer=await pc.createOffer();
+await pc.setLocalDescription(offer);
+socket.emit("offer",{to:peerId,offer});
+}
+
+function startTalk(e){if(e)e.preventDefault();if(!localStream)return;localStream.getAudioTracks().forEach(t=>t.enabled=true);document.getElementById("ptt-btn").classList.add("active");socket.emit("ptt-start");setTalking(myId,true);}
+function stopTalk(e){if(e)e.preventDefault();if(!localStream)return;localStream.getAudioTracks().forEach(t=>t.enabled=false);document.getElementById("ptt-btn").classList.remove("active");socket.emit("ptt-stop");setTalking(myId,false);}
+
+function addUser({socketId,name,color}){
+const isSelf=socketId===myId;
+const list=document.getElementById("user-list");
+const div=document.createElement("div");
+div.className="user-item";div.id="user-"+socketId;
+div.innerHTML=`<div class="user-avatar" style="background:${color}">${name.charAt(0)}</div><div class="user-info"><div class="user-name">${name}${isSelf?' <span style="color:var(--muted);font-size:.7rem">(YOU)</span>':''}</div><div class="user-status">STANDBY</div><div class="waveform"><span></span><span></span><span></span><span></span><span></span><span></span></div></div>`;
+list.appendChild(div);updateUserCount();
+}
+
+function setTalking(socketId,v){
+const el=document.getElementById("user-"+socketId);
+if(!el)return;
+el.classList.toggle("talking",v);
+el.querySelector(".user-status").textContent=v?"TRANSMITTING":"STANDBY";
+}
+
+function updateUserCount(){document.getElementById("user-count").textContent=document.getElementById("user-list").children.length;}
+function log(msg,type=""){const l=document.getElementById("status-log");const p=document.createElement("p");p.textContent="["+new Date().toLocaleTimeString()+"] "+msg;if(type)p.classList.add(type);l.prepend(p);}
+function showError(msg){const b=document.getElementById("error-banner");b.textContent="⚠ "+msg;b.style.display="block";}
+function hideError(){document.getElementById("error-banner").style.display="none";}
+</script>
+</body>
+</html>
